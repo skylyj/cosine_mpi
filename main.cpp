@@ -6,6 +6,8 @@
 #include <fstream>
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
+#include <boost/program_options.hpp>
+
 #include "types.h"
 void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::map<int,DataSet> &load_data);
 void all_to_all(boost::mpi::communicator world,std::map<int,DataSet> &load_data,DataSet&data );
@@ -16,15 +18,37 @@ void transpose_data(const DataSet &indata,DataSet &outdata);
 void parallel_dump(const std::string &outpath,const int &rank, const std::map<int,DataSet> &data);
 void parallel_dump(const std::string &outpath,const int &rank, const DataSet &data);
 void normalize_data(DataSet &data);
+using namespace boost::program_options;
+
 int main(int argc, char **argv) {
-  int ierr;
+// int main(int argc, char* argv[])
+  options_description desc("Allowed options");
+  desc.add_options()
+    ("help", "produce help message")
+    ("sim_bar", value<float>()->default_value(0), "sim_bar")
+    ("topk", value<int>()->default_value(10), "topk")
+    ("out0", value<std::string>(), "outpath0")
+    ("out", value<std::string>(), "outpath")
+    ;
+
+  variables_map vm;        
+  store(parse_command_line(argc, argv, desc), vm);
+  notify(vm);    
+
+  if (vm.count("help")) {
+    std::cout << desc;
+    return 0;
+  }
+  std::cout << "simbar " << vm["sim_bar"].as<float>() << std::endl;
+  std::cout << "topk " << vm["topk"].as<float>() << std::endl;
+
   int rank,size;
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_File in;
   boost::mpi::communicator world(MPI_COMM_WORLD, boost::mpi::comm_attach);
-  ierr = MPI_File_open(MPI_COMM_WORLD, "../data", MPI_MODE_RDONLY, MPI_INFO_NULL, &in);
+  int ierr = MPI_File_open(MPI_COMM_WORLD, "../data", MPI_MODE_RDONLY, MPI_INFO_NULL, &in);
   if (ierr) {
     if (rank == 0) fprintf(stderr, "%s: Couldn't open file %s\n", argv[0], argv[1]);
     MPI_Finalize();

@@ -6,26 +6,26 @@
 #include <boost/foreach.hpp>
 #include "types.h"
 void all_to_all(boost::mpi::communicator world,std::map<int,DataSet> &load_data, DataSet &data){
-  boost::mpi::request reqs[3];
+  std::vector<boost::mpi::request> reqs;
   int sendtag = 0;
 
   for (int i=1; i<world.size(); i++) {
     int dest = (world.rank()+i) %world.size();
-    reqs[i-1]=world.isend(dest,sendtag,load_data[dest]);
+    reqs.push_back(world.isend(dest,sendtag,load_data[dest]));
   }
 
-  boost::mpi::request reqsr[3];
+  std::vector<boost::mpi::request> reqsr;
   for (int i=1; i<world.size(); i++) {
     int from = (world.rank()+i) %world.size();
-    reqsr[i-1]=world.irecv(from,sendtag,load_data[from]);
+    reqsr.push_back(world.irecv(from,sendtag,load_data[from]));
   }
 
-  boost::mpi::wait_all(reqs, reqs + 3);
-  boost::mpi::wait_all(reqsr, reqsr + 3);
+  boost::mpi::wait_all(reqs.begin(), reqs.end());
+  boost::mpi::wait_all(reqsr.begin(), reqsr.end());
   BOOST_FOREACH(auto &load,load_data){
     BOOST_FOREACH(auto &d,load.second){
-      auto user=d.first;
-      auto info=d.second;
+      auto user = d.first;
+      auto info = d.second;
       BOOST_FOREACH(auto &i,info){
         data[user].push_back(i);
       }
