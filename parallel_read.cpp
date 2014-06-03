@@ -6,6 +6,7 @@
 #include <string>
 #include "types.h"
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 std::vector<std::string> split(const std::string &s, char delim) {
   std::stringstream ss(s);
   std::string item;
@@ -94,11 +95,10 @@ void parallel_dump(const std::string &outpath,const int &rank, const DataSet &da
 
 
 void parallel_dump(const std::string &outpath,const int &rank, const std::map<int,DataSet> &load_data){
-  // boost::filesystem::path path(outpath);
-  // boost::filesystem::path file(std::to_string(rank));
-  // boost::filesystem::path full_path(path/file);
-  // std::ofstream ofp(full_path.string());
-  std::ofstream ofp(outpath+"/"+std::to_string(rank));
+  boost::filesystem::path path(outpath);
+  boost::filesystem::path file(std::to_string(rank));
+  boost::filesystem::path full_path(path/file);
+  std::ofstream ofp(full_path.string());
   BOOST_FOREACH(auto &h,load_data){
     auto & mod=h.first;
     BOOST_FOREACH(auto &d,h.second){

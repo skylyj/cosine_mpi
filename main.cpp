@@ -21,14 +21,16 @@ void normalize_data(DataSet &data);
 using namespace boost::program_options;
 
 int main(int argc, char **argv) {
-// int main(int argc, char* argv[])
   options_description desc("Allowed options");
+  float sim_bar;int topk;
+  std::string outpath0,outpath,datapath;
   desc.add_options()
-    ("help", "produce help message")
-    ("sim_bar", value<float>()->default_value(0), "sim_bar")
-    ("topk", value<int>()->default_value(10), "topk")
-    ("out0", value<std::string>(), "outpath0")
-    ("out", value<std::string>(), "outpath")
+    ("help", "Use --help or -h to list all arguments")
+    ("sim_bar", value<float>(&sim_bar)->default_value(0), "Use --sim_bar 0.01")
+    ("topk", value<int>(&topk)->default_value(10), "Use --topk 10")
+    ("datapath", value<std::string>(&datapath), "datapath")
+    ("outpath0", value<std::string>(&outpath0), "outpath0")
+    ("outpath", value<std::string>(&outpath), "outpath")
     ;
 
   variables_map vm;        
@@ -39,16 +41,28 @@ int main(int argc, char **argv) {
     std::cout << desc;
     return 0;
   }
-  std::cout << "simbar " << vm["sim_bar"].as<float>() << std::endl;
-  std::cout << "topk " << vm["topk"].as<float>() << std::endl;
-
   int rank,size;
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_File in;
   boost::mpi::communicator world(MPI_COMM_WORLD, boost::mpi::comm_attach);
-  int ierr = MPI_File_open(MPI_COMM_WORLD, "../data", MPI_MODE_RDONLY, MPI_INFO_NULL, &in);
+
+  if (world.rank()==0) {
+    std::string paramstr="sim_bar topk datapath outpath0 outpath";
+    std::vector<std::string> params;
+    split(params, paramstr, boost::is_any_of(" "), boost::token_compress_on);
+    BOOST_FOREACH(auto &para,params){
+      if (vm.count(para)==0){
+        std::cout<<para<<" required!!\n";
+        exit(2);
+      }
+    }
+    std::cout << "sim_bar = " << sim_bar<<", topk= " << topk
+              <<", datapath = "<< datapath <<", outpath0 = "<< outpath0 <<", out= " <<outpath<<std::endl;
+  }
+
+  int ierr = MPI_File_open(MPI_COMM_WORLD, datapath.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &in);
   if (ierr) {
     if (rank == 0) fprintf(stderr, "%s: Couldn't open file %s\n", argv[0], argv[1]);
     MPI_Finalize();
@@ -59,7 +73,7 @@ int main(int argc, char **argv) {
   const int overlap = 100;
   parallel_read(&in, world.rank(), world.size(), overlap,load_data);
   MPI_File_close(&in);
-  parallel_dump("../out0",world.rank(),load_data);
+  parallel_dump(outpath0,world.rank(),load_data);
 
   DataSet data;
   all_to_all(world,load_data,data);
@@ -84,7 +98,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-  parallel_dump(std::string("../out"),world.rank(),sims);
+  parallel_dump(outpath,world.rank(),sims);
   MPI_Finalize();
   return 0;
 }
