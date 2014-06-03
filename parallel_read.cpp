@@ -1,6 +1,11 @@
 #include <sstream>
+#include <iterator>
 #include <mpi.h>
+#include <boost/foreach.hpp>
+#include <fstream>
+#include <string>
 #include "types.h"
+#include <boost/algorithm/string.hpp>
 std::vector<std::string> split(const std::string &s, char delim) {
   std::stringstream ss(s);
   std::string item;
@@ -64,9 +69,6 @@ void parallel_read(MPI_File *in, const int rank,const int size,const int overlap
   std::stringstream ss(str);
   std::string line;
   while (std::getline(ss, line, '\n')) {
-    if (rank==2){
-      std::cout<<"####"<<line<<std::endl;
-    }
     std::vector<std::string> elems=split(line,'\t');
     auto fid=atoi(elems[0].c_str());
     auto sid=atoi(elems[1].c_str());
@@ -75,4 +77,38 @@ void parallel_read(MPI_File *in, const int rank,const int size,const int overlap
     load_data[hash_id][fid].push_back(std::make_pair(sid,score));
   }
   return;
+}
+
+void parallel_dump(const std::string &outpath,const int &rank, const DataSet &data){
+  std::ofstream ofp(outpath+"/"+std::to_string(rank));
+  BOOST_FOREACH(auto &d,data){
+    auto user=d.first;
+    auto info=d.second;
+    std::vector<std::string> outinfo;
+    transform(info.begin(),info.end(),back_inserter(outinfo),
+              [](std::pair<int,float>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
+    ofp<<user<<"\t"<<boost::join(outinfo,"|")<<std::endl;
+  }
+  ofp.close();
+}
+
+
+void parallel_dump(const std::string &outpath,const int &rank, const std::map<int,DataSet> &load_data){
+  // boost::filesystem::path path(outpath);
+  // boost::filesystem::path file(std::to_string(rank));
+  // boost::filesystem::path full_path(path/file);
+  // std::ofstream ofp(full_path.string());
+  std::ofstream ofp(outpath+"/"+std::to_string(rank));
+  BOOST_FOREACH(auto &h,load_data){
+    auto & mod=h.first;
+    BOOST_FOREACH(auto &d,h.second){
+      auto &user=d.first;
+      auto &info=d.second;
+      std::vector<std::string> outinfo;
+      transform(info.begin(),info.end(),back_inserter(outinfo),
+                [](std::pair<int,float>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
+      ofp<<mod<<"||"<<user<<"\t"<<boost::join(outinfo,"|")<<std::endl;
+    }
+  }
+  ofp.close();
 }
