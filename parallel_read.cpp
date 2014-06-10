@@ -17,7 +17,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
   return elems;
 }
 
-void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::map<int,DataSet> &load_data) {
+void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::vector<DataSet> &load_data) {
   // 并行读取文件，格式为uid\ttid\tscore
   /* read in relevant chunk of file into "chunk",
    * which starts at location in the file globalstart
@@ -75,9 +75,17 @@ void parallel_read(MPI_File *in, const int rank,const int size,const int overlap
     auto sid=atoi(elems[1].c_str());
     auto score=atof(elems[2].c_str());
     int hash_id = fid%size;
-    load_data[hash_id][fid].push_back(std::make_pair(sid,score));
+    DataSet & data = load_data[hash_id];
+    data[fid].push_back(std::make_pair(sid,score));
   }
   return;
+}
+
+std::string info2str(const std::vector<std::pair<int,double> >& info){
+    std::vector<std::string> outinfo;
+    transform(info.begin(),info.end(),back_inserter(outinfo),
+              [](std::pair<int,double>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
+    return boost::join(outinfo,"|");
 }
 
 void parallel_dump(const std::string &outpath,const int &rank, const DataSet &data){
@@ -87,7 +95,7 @@ void parallel_dump(const std::string &outpath,const int &rank, const DataSet &da
     auto info=d.second;
     std::vector<std::string> outinfo;
     transform(info.begin(),info.end(),back_inserter(outinfo),
-              [](std::pair<int,float>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
+              [](std::pair<int,double>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
     ofp<<user<<"\t"<<boost::join(outinfo,"|")<<std::endl;
   }
   ofp.close();
@@ -106,9 +114,29 @@ void parallel_dump(const std::string &outpath,const int &rank, const std::map<in
       auto &info=d.second;
       std::vector<std::string> outinfo;
       transform(info.begin(),info.end(),back_inserter(outinfo),
-                [](std::pair<int,float>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
+                [](std::pair<int,double>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
       ofp<<mod<<"||"<<user<<"\t"<<boost::join(outinfo,"|")<<std::endl;
     }
+  }
+  ofp.close();
+}
+
+void parallel_dump(const std::string &outpath,const int &rank, const std::vector<DataSet> &load_data){
+  boost::filesystem::path path(outpath);
+  boost::filesystem::path file(std::to_string(rank));
+  boost::filesystem::path full_path(path/file);
+  std::ofstream ofp(full_path.string());
+  int mod = 0;
+  BOOST_FOREACH(auto &l,load_data){
+    BOOST_FOREACH(auto &d,l){
+      auto &user=d.first;
+      auto &info=d.second;
+      std::vector<std::string> outinfo;
+      transform(info.begin(),info.end(),back_inserter(outinfo),
+                [](std::pair<int,double>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
+      ofp<<mod<<"||"<<user<<"\t"<<boost::join(outinfo,"|")<<std::endl;
+    }
+    mod++;
   }
   ofp.close();
 }

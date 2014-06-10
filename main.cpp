@@ -7,26 +7,35 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
-
+#include <boost/date_time.hpp>
+#include <boost/format.hpp>
+#include <boost/mpi/collectives.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/utility.hpp>
 #include "types.h"
-void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::map<int,DataSet> &load_data);
-void all_to_all(boost::mpi::communicator world,std::map<int,DataSet> &load_data,DataSet&data );
-void cal_sim(boost::mpi::communicator world, const DataSet& data_a,const DataSet & data_b_inv,
-               DataSet &sims,const int &topk=100, const float &sim_bar=0);
+void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::vector<DataSet> &load_data);
+void cal_sim(const boost::mpi::communicator &world, const DataSet& data_a,const DataSet & data_b_inv,
+               DataSet &sims,const int &topk, const double &sim_bar);
 void chain_pass_ball(boost::mpi::communicator world,DataSet &data);
 void transpose_data(const DataSet &indata,DataSet &outdata);
-void parallel_dump(const std::string &outpath,const int &rank, const std::map<int,DataSet> &data);
+void parallel_dump(const std::string &outpath,const int &rank, const std::vector<DataSet> &data);
 void parallel_dump(const std::string &outpath,const int &rank, const DataSet &data);
 void normalize_data(DataSet &data);
+void solo_log(const int & irank,const int &prank,const std::string & info);
+void solo_log(const int & irank,const int &prank,boost::format & info);
+void construct_data(const std::vector<DataSet> &indata, DataSet &outdata);
+std::string info2str(const std::vector<std::pair<int,double> >& info);
+void sort_sims(DataSet &sims);
 using namespace boost::program_options;
 
 int main(int argc, char **argv) {
   options_description desc("Allowed options");
-  float sim_bar;int topk;
+  double sim_bar;int topk;
   std::string outpath0,outpath,datapath;
   desc.add_options()
     ("help", "Use --help or -h to list all arguments")
-    ("sim_bar", value<float>(&sim_bar)->default_value(0), "Use --sim_bar 0.01")
+    ("sim_bar", value<double>(&sim_bar)->default_value(0), "Use --sim_bar 0.01")
     ("topk", value<int>(&topk)->default_value(10), "Use --topk 10")
     ("datapath", value<std::string>(&datapath), "datapath")
     ("outpath0", value<std::string>(&outpath0), "outpath0")
@@ -69,36 +78,52 @@ int main(int argc, char **argv) {
     exit(2);
   }
 
-  std::map<int,DataSet> load_data;
+  boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
+  solo_log(world.rank(),0,boost::format("start time %1% ...\n") %start);
+
+  // std::map<int,DataSet> load_data;
+  std::vector<DataSet> load_data;
+  load_data.resize(world.size());
   const int overlap = 100;
+
+  solo_log(world.rank(),0,boost::format("parallel_read start at  %1% ...") %boost::posix_time::second_clock::local_time());
   parallel_read(&in, world.rank(), world.size(), overlap,load_data);
   MPI_File_close(&in);
-  parallel_dump(outpath0,world.rank(),load_data);
+  // parallel_dump(outpath0,world.rank(),load_data);
+
+  std::vector<DataSet> idata;
+  idata.resize(world.size());
+  solo_log(world.rank(),0,boost::format("all_to_all start at  %1% ...") %boost::posix_time::second_clock::local_time());
+  all_to_all(world,load_data,idata);
+  load_data.clear();
 
   DataSet data;
-  all_to_all(world,load_data,data);
+  solo_log(world.rank(),0,boost::format("construct start at  %1% ...") %boost::posix_time::second_clock::local_time());
+  construct_data(idata,data);
+  solo_log(world.rank(),0,boost::format("normalize start at  %1% ...") %boost::posix_time::second_clock::local_time());
   normalize_data(data);
 
   DataSet data_inv;
+  solo_log(world.rank(),0,boost::format("transpose start at  %1% ...") %boost::posix_time::second_clock::local_time());
   transpose_data(data,data_inv);
 
   DataSet sims;
-  cal_sim(world, data,data_inv, sims,5);
+  solo_log(world.rank(),0,boost::format("cal_sim start at  %1% ...") %boost::posix_time::second_clock::local_time());
+  cal_sim(world, data,data_inv, sims,topk,sim_bar);
   for (int i=1;i<world.size();i++){
     chain_pass_ball(world,data_inv);
-    cal_sim(world, data,data_inv, sims,5);
-    if (world.rank()==0){
-      std::cout<<"round "<<i<<std::endl;
-      BOOST_FOREACH(auto &d,sims) {
-        BOOST_FOREACH(auto &i,d.second) {
-          std::cout<<i.first<<"|";
-        }
-        std::cout<<std::endl;
-        break;
-      }
-    }
+    solo_log(world.rank(),0,boost::format("after passing ball;round %1% ...%2%") \
+             %i %boost::posix_time::second_clock::local_time());
+    cal_sim(world, data,data_inv, sims,topk,sim_bar);
+      // solo_log(world.rank(),0,boost::format("round %1% ...%2%") %i %info2str(sims[1000070])); 
   }
+  sort_sims(sims);  
+  // solo_log(world.rank(),0,boost::format(" ...%1%")  %info2str(sims[1000070]));       
   parallel_dump(outpath,world.rank(),sims);
+
+  boost::posix_time::ptime end = boost::posix_time::second_clock::local_time();
+  solo_log(world.rank(),0,boost::format("end time %1%elapsed time %2%") %start %(end-start));
+
   MPI_Finalize();
   return 0;
 }
