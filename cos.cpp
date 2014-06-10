@@ -7,7 +7,7 @@
 #include <boost/format.hpp>
 #include "types.h"
 void solo_log(const int & irank,const int &prank,boost::format & info);
-bool compare(const std::pair<int,double> & a, const std::pair<int,double> &b){
+inline bool compare(const std::pair<int,double> & a, const std::pair<int,double> &b){
       return a.second > b.second;   //升序排列，如果改为return a>b，则为降序
 }
 
@@ -19,7 +19,7 @@ void sort_sims(DataSet &sims){
   }
 }
 
-void sim_update(std::vector<std::pair<int, double> > & usims,\
+inline void sim_update(std::vector<std::pair<int, double> > & usims,\
                 const std::map<int,double> &isims,const int & topk,const double &sim_bar){
   // 对某个user的sim vector 来做更新
   BOOST_FOREACH(auto &ipair,isims){
