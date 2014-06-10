@@ -4,7 +4,9 @@
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/utility.hpp>
 #include <boost/foreach.hpp>
+#include <boost/current_function.hpp>
 #include "types.h"
+#include <boost/format.hpp>
 void all_to_all(boost::mpi::communicator world,std::map<int,DataSet> &load_data, DataSet &data){
   std::vector<boost::mpi::request> reqs;
   int sendtag = 0;
@@ -12,16 +14,19 @@ void all_to_all(boost::mpi::communicator world,std::map<int,DataSet> &load_data,
   for (int i=1; i<world.size(); i++) {
     int dest = (world.rank()+i) %world.size();
     reqs.push_back(world.isend(dest,sendtag,load_data[dest]));
+    std::cout<<world.rank()<<" sended\n";
   }
 
   std::vector<boost::mpi::request> reqsr;
   for (int i=1; i<world.size(); i++) {
     int from = (world.rank()+i) %world.size();
     reqsr.push_back(world.irecv(from,sendtag,load_data[from]));
+    std::cout<<world.rank()<<" received\n";
   }
-
+  std::cout<<"all to all waiting\n";
   boost::mpi::wait_all(reqs.begin(), reqs.end());
   boost::mpi::wait_all(reqsr.begin(), reqsr.end());
+  std::cout<<"all to all communcation end\n"; 
   BOOST_FOREACH(auto &load,load_data){
     BOOST_FOREACH(auto &d,load.second){
       auto user = d.first;
@@ -31,6 +36,7 @@ void all_to_all(boost::mpi::communicator world,std::map<int,DataSet> &load_data,
       }
     }
   }
+  std::cout<<"all to all push back end\n"; 
   load_data.clear();
 }
 
