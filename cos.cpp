@@ -1,5 +1,5 @@
 #include <vector>
-#include <map>
+#include <boost/unordered_map.hpp>
 #include <algorithm>
 #include <boost/foreach.hpp>
 #include <boost/mpi.hpp>
@@ -20,7 +20,7 @@ void sort_sims(DataSet &sims){
 }
 
 inline void sim_update(std::vector<std::pair<int, double> > & usims,\
-                const std::map<int,double> &isims,const int & topk,const double &sim_bar){
+                       const boost::unordered_map<int,double> &isims,const int & topk,const double &sim_bar){
   // 对某个user的sim vector 来做更新
   BOOST_FOREACH(auto &ipair,isims){
     if (usims.size()<topk) {
@@ -46,7 +46,7 @@ void cal_sim(const boost::mpi::communicator &world, const DataSet& data_a,const 
   BOOST_FOREACH(auto & d, data_a){
     auto & user = d.first;
     auto & info = d.second;
-    std::map<int,double> isims;
+    boost::unordered_map<int,double> isims;
     BOOST_FOREACH(auto & i, info){
       auto & item = i.first;
       auto & score = i.second;

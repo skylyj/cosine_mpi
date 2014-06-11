@@ -11,7 +11,7 @@
 #include <boost/format.hpp>
 #include <boost/mpi/collectives.hpp>
 #include <boost/serialization/string.hpp>
-#include <boost/serialization/map.hpp>
+#include <boost/serialization/unordered_map.hpp>
 #include <boost/serialization/utility.hpp>
 #include "types.h"
 void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::vector<DataSet> &load_data);
@@ -81,7 +81,6 @@ int main(int argc, char **argv) {
   boost::posix_time::ptime start = boost::posix_time::second_clock::local_time();
   solo_log(world.rank(),0,boost::format("start time %1% ...\n") %start);
 
-  // std::map<int,DataSet> load_data;
   std::vector<DataSet> load_data;
   load_data.resize(world.size());
   const int overlap = 100;

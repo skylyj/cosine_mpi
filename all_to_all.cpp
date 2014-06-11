@@ -2,6 +2,7 @@
 #include <iostream>
 #include <boost/serialization/string.hpp>
 #include <boost/serialization/map.hpp>
+#include <boost/serialization/unordered_map.hpp>
 #include <boost/serialization/utility.hpp>
 #include <boost/foreach.hpp>
 #include <boost/current_function.hpp>
