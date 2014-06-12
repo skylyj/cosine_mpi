@@ -20,9 +20,12 @@ void sort_sims(DataSet &sims){
 }
 
 inline void sim_update(std::vector<std::pair<int, double> > & usims,\
-                       const boost::unordered_map<int,double> &isims,const int & topk,const double &sim_bar){
+                       const int & ouser,const double &osim,
+                       const int & topk){
+  // 对某个用户和其他用户的相似性对做更新
+  // add pair <ouser,osim> to usims
+  std::pair<int,double> ipair(ouser,osim);
   // 对某个user的sim vector 来做更新
-  BOOST_FOREACH(auto &ipair,isims){
     if (usims.size()<topk) {
       usims.push_back(ipair);
       if (usims.size()==topk){
@@ -38,19 +41,18 @@ inline void sim_update(std::vector<std::pair<int, double> > & usims,\
         std::push_heap(usims.begin(),usims.end(),compare);
       }
     }
-  }
 }
 
 void cal_sim(const boost::mpi::communicator &world, const std::vector<int> & users,
              const DataSet& data_a,const DataSet & data_b_inv,\
-             DataSet &sims,const int &topk, const double &sim_bar){
+             DataSet &sims,const int &topk, const double &sim_bar, const int &intersect_bar){
   // users here is for openmp parallel
   int n = users.size();
-#pragma omp parallel for num_threads(5)
+#pragma omp parallel for num_threads(10)
   for(int i = 0;i < n;i++){
     auto user = users[i];
     auto & info = data_a.find(user)->second;
-    boost::unordered_map<int,double> isims;
+    boost::unordered_map<int,std::pair<int,double> >isims;
     BOOST_FOREACH(auto & i, info){
       auto & item = i.first;
       auto & score = i.second;
@@ -60,9 +62,17 @@ void cal_sim(const boost::mpi::communicator &world, const std::vector<int> & use
       BOOST_FOREACH(auto & oi, oinfo){
         auto & ouser = oi.first;
         auto & oscore = oi.second;
-        isims[ouser] += score* oscore;
+        isims[ouser].second += score* oscore;
+        isims[ouser].first += 1;
       }
-    }
-    sim_update(sims[user],isims,topk,sim_bar);
+    } // got similar items for user, add it to global result sims
+    BOOST_FOREACH(auto &i,isims){
+      auto &ouser = i.first;
+      auto &osim = i.second.second;
+      auto &intersects = i.second.first;
+      if (intersects < intersect_bar) continue;
+      if (osim < sim_bar) continue;
+      sim_update(sims[user],ouser,osim,topk);
+    } 
   }
 }

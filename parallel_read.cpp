@@ -94,6 +94,7 @@ void parallel_dump(const std::string &outpath,const int &rank, const DataSet &da
     auto user=d.first;
     auto info=d.second;
     std::vector<std::string> outinfo;
+    if (info.empty()) continue;
     transform(info.begin(),info.end(),back_inserter(outinfo),
               [](std::pair<int,double>i){return std::to_string(i.first)+":"+std::to_string(i.second);});
     ofp<<user<<"\t"<<boost::join(outinfo,"|")<<std::endl;
