@@ -41,11 +41,15 @@ inline void sim_update(std::vector<std::pair<int, double> > & usims,\
   }
 }
 
-void cal_sim(const boost::mpi::communicator &world, const DataSet& data_a,const DataSet & data_b_inv,\
+void cal_sim(const boost::mpi::communicator &world, const std::vector<int> & users,
+             const DataSet& data_a,const DataSet & data_b_inv,\
              DataSet &sims,const int &topk, const double &sim_bar){
-  BOOST_FOREACH(auto & d, data_a){
-    auto & user = d.first;
-    auto & info = d.second;
+  // users here is for openmp parallel
+  int n = users.size();
+#pragma omp parallel for num_threads(5)
+  for(int i = 0;i < n;i++){
+    auto user = users[i];
+    auto & info = data_a.find(user)->second;
     boost::unordered_map<int,double> isims;
     BOOST_FOREACH(auto & i, info){
       auto & item = i.first;

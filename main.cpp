@@ -15,8 +15,9 @@
 #include <boost/serialization/utility.hpp>
 #include "types.h"
 void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::vector<DataSet> &load_data);
-void cal_sim(const boost::mpi::communicator &world, const DataSet& data_a,const DataSet & data_b_inv,
-               DataSet &sims,const int &topk, const double &sim_bar);
+void cal_sim(const boost::mpi::communicator &world, const std::vector<int> &users,
+             const DataSet& data_a,const DataSet & data_b_inv,
+             DataSet &sims,const int &topk, const double &sim_bar);
 void chain_pass_ball(boost::mpi::communicator world,DataSet &data);
 void transpose_data(const DataSet &indata,DataSet &outdata);
 void parallel_dump(const std::string &outpath,const int &rank, const std::vector<DataSet> &data);
@@ -107,13 +108,23 @@ int main(int argc, char **argv) {
   transpose_data(data,data_inv);
 
   DataSet sims;
+  std::vector<int> users(data.size());
+  {
+    int i = 0;
+    BOOST_FOREACH(auto &uinfo, data) {
+      auto u = uinfo.first;
+      users[i++] = u;
+      sims[u]; // force insertion in a single thread ...
+    }
+  }
+
   solo_log(world.rank(),0,boost::format("cal_sim start at  %1% ...") %boost::posix_time::second_clock::local_time());
-  cal_sim(world, data,data_inv, sims,topk,sim_bar);
+  cal_sim(world,users, data,data_inv, sims,topk,sim_bar);
   for (int i=1;i<world.size();i++){
     chain_pass_ball(world,data_inv);
     solo_log(world.rank(),0,boost::format("after passing ball;round %1% ...%2%") \
              %i %boost::posix_time::second_clock::local_time());
-    cal_sim(world, data,data_inv, sims,topk,sim_bar);
+    cal_sim(world,users, data,data_inv, sims,topk,sim_bar);
       // solo_log(world.rank(),0,boost::format("round %1% ...%2%") %i %info2str(sims[1000070])); 
   }
   sort_sims(sims);  
