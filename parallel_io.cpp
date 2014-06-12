@@ -7,16 +7,8 @@
 #include "types.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
-std::vector<std::string> split(const std::string &s, char delim) {
-  std::stringstream ss(s);
-  std::string item;
-  std::vector<std::string> elems;
-  while (std::getline(ss, item, delim)) {
-    elems.push_back(item);
-  }
-  return elems;
-}
-
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
 void parallel_read(MPI_File *in, const int rank,const int size,const int overlap, std::vector<DataSet> &load_data) {
   // 并行读取文件，格式为uid\ttid\tscore
   /* read in relevant chunk of file into "chunk",
@@ -70,7 +62,8 @@ void parallel_read(MPI_File *in, const int rank,const int size,const int overlap
   std::stringstream ss(str);
   std::string line;
   while (std::getline(ss, line, '\n')) {
-    std::vector<std::string> elems=split(line,'\t');
+    std::vector<std::string> elems;
+    boost::split(elems, line, boost::is_any_of("\t"), boost::token_compress_on);
     auto fid=atoi(elems[0].c_str());
     auto sid=atoi(elems[1].c_str());
     auto score=atof(elems[2].c_str());
