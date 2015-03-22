@@ -2,6 +2,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include "types.h"
+#include <iostream>
+#include <unordered_map>
 #include <cmath>
 void construct_data(const std::vector<DataSet> &indata, DataSet &outdata){
   BOOST_FOREACH(auto &mod, indata){
