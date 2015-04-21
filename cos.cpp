@@ -52,7 +52,7 @@ void cal_sim(const boost::mpi::communicator &world, const std::vector<int> & use
   for(int i = 0;i < n;i++){
     auto user = users[i];
     auto & info = data_a.find(user)->second;
-    boost::unordered_map<int,std::pair<int,double> >isims;
+    boost::unordered_map<int,std::pair<int,double> >isims; // count for cbar, similarity
     BOOST_FOREACH(auto & i, info){
       auto & item = i.first;
       auto & score = i.second;

@@ -155,7 +155,7 @@ void load_data(const boost::mpi::communicator & world, std::string & inpath, std
         int istart = isize * world.rank();
         int iend = istart + isize;
         if (world.rank() == world.size() -1 ){
-            iend = fnms.size() - 1 ;
+            iend = fnms.size();
         }
         for (int i = istart; i<iend; i++){
             solo_log(world.rank(), 0,boost::format("loading  single file  %1% ...") %fnms[i]);

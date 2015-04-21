@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     desc.add_options()
         ("help", "Use --help or -h to list all arguments")
         ("sim_bar", boost::program_options::value<double>(&sim_bar)->default_value(0.01), "Use --sim_bar 0.01")
-        ("intersect_bar", boost::program_options::value<int>(&intersect_bar)->default_value(0), "Use --intersect_bar 0.01")
+        ("intersect_bar", boost::program_options::value<int>(&intersect_bar)->default_value(1), "Use --intersect_bar 1")
         ("topk", boost::program_options::value<int>(&topk)->default_value(10), "Use --topk 10")
         ("datapath_a", boost::program_options::value<std::string>(&datapath_a), "datapath_a")
         ("datapath_b", boost::program_options::value<std::string>(&datapath_b), "datapath_b")
