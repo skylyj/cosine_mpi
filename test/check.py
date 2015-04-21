@@ -4,18 +4,23 @@ from collections import defaultdict
 import pprint
 import os
 def get_data(inpath, inv=False):
-    fp = open(inpath)
+    if os.path.isdir(inpath):
+        fnms =[os.path.join(os.path.abspath(inpath), i) for i in os.listdir(inpath)]
+    else:
+        fnms = [inpath]
     u_info = defaultdict(list)
-    for line in fp:
-        uid, tid, score = line.rstrip().split()
-        uid = int(uid)
-        tid = int(tid)
-        score = float(score)
-        if not inv:
-            u_info[uid].append([tid, score])
-        else:
-            u_info[tid].append([uid, score])
-    fp.close()
+    for fnm in fnms:
+        fp = open(fnm)
+        for line in fp:
+            uid, tid, score = line.rstrip().split()
+            uid = int(uid)
+            tid = int(tid)
+            score = float(score)
+            if not inv:
+                u_info[uid].append([tid, score])
+            else:
+                u_info[tid].append([uid, score])
+        fp.close()
     return u_info
 
 def multiply(u_i, i_u):
@@ -65,7 +70,7 @@ if __name__=="__main__":
     mpipath = sys.argv[4]
     sim = multiply(u_i, i_u)
     output(sim, ofnm)
-    # exact_check(sim, mpipath)
+    exact_check(sim, mpipath)
 
         
     
